@@ -55,10 +55,13 @@ Test card: `4242 4242 4242 4242`, any future expiry, any CVC.
 
 ## Deployment
 
-Live (test mode): **https://overpriced-water.vercel.app** — currently **down**: the Vercel project
-was destroyed by a `stripe projects remove` of what looked like a duplicate resource (friction
-P9a). See Open items for the recovery steps; everything below was verified against this URL while
-it was up.
+Live (test mode): **https://overpriced-water.vercel.app**
+
+This URL has been up, destroyed, and rebuilt. A `stripe projects remove` of what looked like a
+duplicate resource deleted the live Vercel project (friction P9a); `stripe projects add
+vercel/project` created a fresh one, the `overpriced-water` name — and therefore the alias —
+was reclaimed, and everything in the table below was re-verified against the rebuilt project.
+Deploys are still CLI-driven: `vercel git connect` is blocked at the account level (friction P12).
 
 Stripe Projects provisions the Vercel project but cannot deploy it (friction P8), so deployment
 is the Vercel CLI reading the vault's token:
@@ -84,7 +87,7 @@ endpoint's secret, not `stripe listen`'s) and `NEXT_PUBLIC_SITE_URL` (see fricti
 | `GET /api/categories`, `/api/products` | Live data from Supabase |
 | REST cart walk (mixed cart) | `409 mixed_cart` with no scope; `client_secret` for `scope=subscription`; hosted `url` for `scope=one_time` |
 | Two coexisting sessions | Both scopes `open` at once; editing one scope expires only that scope |
-| Webhook `checkout.session.completed` | Signature verified against the deployed endpoint's secret → order `OWC-VVVKRC` created (since removed) |
+| Webhook `checkout.session.completed` | Signature verified against the deployed endpoint's secret → order `OWC-VHGJL9` created (since removed) |
 | `/orders/confirmation?session_id=…` | Rendered the order number and receipt |
 | Remote MCP `/api/mcp` | `initialize`, 12 tools, 9 resources, `owc://catalog` (8.5 KB), then `create_cart → add_to_cart → view_cart → start_checkout` returned a real `cs_test_…` Checkout URL |
 | PostHog ingest proxy | `POST /ingest/i/v0/e/` → `{"status":"Ok"}`; `/ingest/static/array.js` → `200` |
@@ -386,6 +389,17 @@ starts working again as soon as a project reclaims that name.
 destroy and refuse when another resource shares it. For anyone using it: a duplicate resource may
 be an *alias* for the same infrastructure, so removing it is not the inverse of adding it.
 
+**Recovery, for the record.** `stripe projects add vercel/project` created a genuinely new project
+(`prj_A6gYL…` rather than the deleted `prj_xM6sI…`) and Vercel let the freed `overpriced-water`
+name be reclaimed, so the production alias came back at the same hostname — which in turn meant
+the still-`enabled` webhook endpoint and its signing secret needed no changes at all. The rest was
+mechanical: `rm -rf .vercel` and `vercel pull` to re-link the working tree, re-push the eight
+runtime variables with `vercel env add … --force`, `vercel deploy --prod`, then re-run the whole
+verification table. Total loss was the Vercel project's configuration; no data and no Stripe
+objects. Note that the variables are still namespaced `VERCEL_PROJECT_2_*` from P9 — the old
+`vercel-project` resource record survives, pointing at the deleted `prj_xM6sI…`, and after P9a it
+is not obviously safe to `remove` it.
+
 ### P10 — No webhook secret is provisioned, and one variable has to serve two endpoints
 
 `stripe projects add stripe/…` has no equivalent for a webhook endpoint: `STRIPE_WEBHOOK_SECRET`
@@ -422,6 +436,25 @@ GET /api/projects/@current/   → "API key does not have access to the requested
 So there is no way to read events back programmatically — you have to open the dashboard to get
 the numeric id. Verification here was done on the write path instead: a `capture` through the
 app's own `/ingest` proxy returns `{"status":"Ok"}`, which proves key, host, and rewrite.
+
+### P12 — A Projects-provisioned Vercel project cannot be connected to GitHub
+
+Push-to-deploy would remove the token-expiry dependency in P9 entirely, so it is the obvious fix.
+It is not reachable from the CLI:
+
+```
+$ vercel git connect --yes
+> Connecting GitHub repository: https://github.com/zmessinger-stripe/overpriced-water
+Error: Failed to link zmessinger-stripe/overpriced-water. You need to add a Login Connection
+  to your GitHub account first. (400)
+```
+
+The account Stripe Projects provisions authenticates by access token and has no GitHub *login
+connection*, which is what Vercel requires before it will attach a repository. Adding one is an
+OAuth flow in the Vercel dashboard — a browser step, not something an access token can do. So a
+Projects-managed Vercel project is CLI-deploy-only until a human links GitHub once, which is
+exactly the friction P8 first hinted at (`vercel/project` provisions a project with no repository
+and Projects has no `deploy` command) showing up again on the other end of the pipeline.
 
 ## Stripe API / Checkout
 
@@ -611,13 +644,17 @@ projections of the same array.
 
 ## Open items
 
-- **The Vercel project needs to be recreated** (friction P9a): removing the duplicate resource
-  deleted it. Recovery is `stripe projects add vercel/project`, then re-push the seven runtime
-  variables with `vercel env add … production`, then `vercel deploy --prod --yes`. If the new
-  project keeps the name `overpriced-water`, the `overpriced-water.vercel.app` alias and the
-  existing Stripe webhook endpoint both start working again with no further changes.
-- Vercel deploys from the CLI, not from the GitHub remote. `vercel git connect` would switch it
-  to push-to-deploy; it needs a live project first.
+- **Vercel deploys from the CLI, not from the GitHub remote.** `vercel git connect` is blocked
+  until someone adds a GitHub login connection to the Vercel account in the dashboard (friction
+  P12). Until then every deploy is `vercel deploy --prod --yes` with a freshly rotated token
+  (`stripe projects rotate vercel-project-2`, friction P9).
+- **The `vercel-project` resource record is dangling** — it points at the `prj_…` that P9a
+  deleted, which is why the live project's variables are namespaced `VERCEL_PROJECT_2_*`.
+  Removing it would tidy the namespace, but P9a is exactly the case for not running `remove`
+  on a resource without first confirming which `prj_…` it shares.
+- **Payment confirmation in the embedded form is untested end-to-end by machine**, by design —
+  `start_checkout` never auto-submits. The webhook and confirmation paths are covered by
+  `stripe trigger`.
 
 ---
 
