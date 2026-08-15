@@ -107,25 +107,12 @@
         "name": "overpriced-water"
       },
       "createdAt": "2026-08-15T00:17:53.947Z",
-      "lastRevealedAt": "2026-08-15T00:17:54.230Z",
+      "lastRevealedAt": "2026-08-15T02:25:04.975Z",
       "lastStatus": "complete",
       "name": "vercel-project",
       "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
       "providerName": "Vercel",
       "resourceId": "fres_61VDtFgIaT33beHmW16VDTiv7xSQHiEH0bby3O8jASd6",
-      "serviceId": "project"
-    },
-    "vercel-project-2": {
-      "configuration": {
-        "name": "overpriced-water"
-      },
-      "createdAt": "2026-08-15T02:05:23.285Z",
-      "lastRevealedAt": "2026-08-15T02:05:23.567Z",
-      "lastStatus": "complete",
-      "name": "vercel-project-2",
-      "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
-      "providerName": "Vercel",
-      "resourceId": "fres_61VDuvhusLHnneWsI16VDTiv7xSQHiEH0bby3O8jA50q",
       "serviceId": "project"
     }
   },

@@ -55,7 +55,10 @@ Test card: `4242 4242 4242 4242`, any future expiry, any CVC.
 
 ## Deployment
 
-Live (test mode): **https://overpriced-water.vercel.app**
+Live (test mode): **https://overpriced-water.vercel.app** — currently **down**: the Vercel project
+was destroyed by a `stripe projects remove` of what looked like a duplicate resource (friction
+P9a). See Open items for the recovery steps; everything below was verified against this URL while
+it was up.
 
 Stripe Projects provisions the Vercel project but cannot deploy it (friction P8), so deployment
 is the Vercel CLI reading the vault's token:
@@ -328,9 +331,8 @@ Error: The token provided via VERCEL_TOKEN environment variable is not valid.
 documented fix is `stripe projects rotate vercel-project`.
 
 The trap is the plausible-looking alternative. Re-running `stripe projects add vercel/project`
-does **not** re-issue credentials for the existing resource; it provisions a **second** one
-(`vercel-project-2`, plus a second real Vercel project), and adding it re-namespaces the
-already-working variables:
+does **not** re-issue credentials for the existing resource; it registers a **second** one
+(`vercel-project-2`) and re-namespaces the already-working variables:
 
 | Before | After |
 | --- | --- |
@@ -342,6 +344,47 @@ So a second `add` silently breaks every script, Vercel env var, and skill instru
 referenced the unprefixed names — the first resource's variables get renamed even though nothing
 about that resource changed. Prefer `stripe projects rotate <resource>` and treat a duplicate
 `add` as destructive.
+
+### P9a — Removing the duplicate resource deleted the live Vercel project 🔴🔴
+
+This is the worst thing that happened while building the demo, and it followed directly from P9.
+
+`stripe projects add vercel/project` (the second one) did **not** create a second Vercel project.
+It created a second *resource record* pointing at the **same** `prj_…` — Vercel matched by
+project name and re-attached. Nothing in the `add` output says so: it reports
+`{"name": "vercel-project-2", "status": "complete"}`, which reads like a new project.
+
+So the obvious cleanup was destructive:
+
+```bash
+$ stripe projects remove vercel-project-2 --yes
+OK: Removed "vercel-project-2" (Vercel/project)
+
+$ curl -o /dev/null -w '%{http_code}' https://overpriced-water.vercel.app/
+404                       # the production alias is gone
+                          # …and the deployment URL now returns 410
+```
+
+Removing the *duplicate* deleted the *shared* Vercel project: production deployments, the
+`overpriced-water.vercel.app` alias, and every environment variable set on it. The vault's
+`VERCEL_TOKEN` reverted to a stale pre-rotation value, and rotating again cannot help:
+
+```
+✗ The provider returned an error: rotateCredentials failed with status 404:
+  resource_removed: Resource prj_xM6sIQD3AZdUBnWAfYaoBuaqNDOs has been removed
+```
+
+With no valid Vercel credential and no project, the CLI cannot recreate anything — recovery has
+to start from `stripe projects add vercel/project` again.
+
+**What survived**, because nothing else lived on Vercel: the Git history and GitHub remote, the
+Supabase database (catalog, carts, orders), the Stripe test products/prices, and the webhook
+endpoint — which still points at `https://overpriced-water.vercel.app/api/webhooks/stripe` and
+starts working again as soon as a project reclaims that name.
+
+**Two lessons.** For the CLI: `remove` should say which provider-side resource it is about to
+destroy and refuse when another resource shares it. For anyone using it: a duplicate resource may
+be an *alias* for the same infrastructure, so removing it is not the inverse of adding it.
 
 ### P10 — No webhook secret is provisioned, and one variable has to serve two endpoints
 
@@ -568,14 +611,13 @@ projections of the same array.
 
 ## Open items
 
-- The per-scope Checkout Session fix (migration `002`, S1's second-order bug) is applied to the
-  database and committed, but **not yet on the live deployment**: the vault's `VERCEL_TOKEN`
-  expired mid-session (friction P9) and re-issuing it needs
-  `stripe projects rotate vercel-project`, which requires an explicit human go-ahead in this
-  environment. Once rotated, `vercel deploy --prod --yes` ships it.
-- `stripe projects add vercel/project` was run a second time while chasing P9 and left a stray
-  `vercel-project-2` resource (and a matching empty Vercel project). Removing it should also
-  restore the unprefixed `VERCEL_*` variable names.
+- **The Vercel project needs to be recreated** (friction P9a): removing the duplicate resource
+  deleted it. Recovery is `stripe projects add vercel/project`, then re-push the seven runtime
+  variables with `vercel env add … production`, then `vercel deploy --prod --yes`. If the new
+  project keeps the name `overpriced-water`, the `overpriced-water.vercel.app` alias and the
+  existing Stripe webhook endpoint both start working again with no further changes.
+- Vercel deploys from the CLI, not from the GitHub remote. `vercel git connect` would switch it
+  to push-to-deploy; it needs a live project first.
 
 ---
 

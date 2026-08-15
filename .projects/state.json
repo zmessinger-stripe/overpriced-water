@@ -41,11 +41,6 @@
       "name": "vercel-project",
       "providerName": "Vercel",
       "serviceId": "project"
-    },
-    "vercel-project-2": {
-      "name": "vercel-project-2",
-      "providerName": "Vercel",
-      "serviceId": "project"
     }
   },
   "environments": {
@@ -69,9 +64,6 @@
         },
         {
           "resourceName": "vercel-project"
-        },
-        {
-          "resourceName": "vercel-project-2"
         }
       ],
       "variables": [
