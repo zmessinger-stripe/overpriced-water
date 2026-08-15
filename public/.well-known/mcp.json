@@ -1,0 +1,35 @@
+{
+  "name": "overpriced-water-co",
+  "description": "Browse and buy absurdly premium bottled water. Catalog, cart, and checkout are all available as tools; payment is completed by a human on a Stripe Checkout page.",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "type": "streamable-http",
+      "url": "/api/mcp",
+      "authentication": "none",
+      "stateful": false,
+      "notes": "Stateless. Carry the X-Cart-Id header returned by create_cart to persist a cart across requests."
+    }
+  ],
+  "capabilities": {
+    "tools": [
+      "list_categories",
+      "search_products",
+      "get_product",
+      "create_cart",
+      "view_cart",
+      "add_to_cart",
+      "update_cart_item",
+      "remove_cart_item",
+      "set_cart_email",
+      "start_checkout",
+      "get_checkout_status",
+      "get_order"
+    ],
+    "resources": ["owc://catalog", "owc://brand", "owc://product/{slug}"]
+  },
+  "webmcp": {
+    "available": true,
+    "notes": "The same tools are registered on document.modelContext in-page for browser agents."
+  }
+}

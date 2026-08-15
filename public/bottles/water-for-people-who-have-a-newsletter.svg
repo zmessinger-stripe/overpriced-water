@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 520" width="400" height="520" role="img" aria-label="Water for People Who Have a Newsletter">
+  <rect width="400" height="520" fill="none"/>
+  <ellipse cx="200" cy="472" rx="112" ry="14" fill="#0b1215" opacity="0.07"/>
+  <path d="M150 96 h100 v46 c0 20 26 40 26 74 v208 c0 22-18 40-40 40 h-72 c-22 0-40-18-40-40 V216 c0-34 26-54 26-74 z"
+             fill="#e6dce4" stroke="#0b1215" stroke-width="2.5" stroke-linejoin="round"/>
+       <rect x="146" y="70" width="108" height="30" rx="6" fill="#5b4a58"/>
+       <rect x="132" y="252" width="136" height="118" fill="#f5f2ec" stroke="#0b1215" stroke-width="1.5"/>
+       <path d="M168 172 c7 24-7 36 0 58" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.5" fill="none"/>
+  <g font-family="ui-monospace, monospace" fill="#0b1215" text-anchor="middle">
+    <text x="200" y="284" font-size="10.5" letter-spacing="1.9">WATER FOR</text>
+    <text x="200" y="299" font-size="10.5" letter-spacing="1.9">PEOPLE WHO</text>
+    <text x="200" y="314" font-size="10.5" letter-spacing="1.9">HAVE A</text>
+    <text x="200" y="329" font-size="10.5" letter-spacing="1.9">NEWSLETTER</text>
+    <text x="200" y="352" font-size="8.5" letter-spacing="2.4" opacity="0.5">PH 7.36 · HI 9.2</text>
+  </g>
+</svg>

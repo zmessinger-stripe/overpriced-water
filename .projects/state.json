@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "providers": {
+    "posthog": {
+      "name": "PostHog"
+    },
+    "supabase": {
+      "name": "Supabase"
+    },
+    "vercel": {
+      "name": "Vercel"
+    }
+  },
+  "resources": {
+    "owc-analytics": {
+      "name": "owc-analytics",
+      "providerName": "PostHog",
+      "serviceId": "analytics"
+    },
+    "owc-db": {
+      "name": "owc-db",
+      "providerName": "Supabase",
+      "serviceId": "project"
+    },
+    "posthog-plan": {
+      "name": "posthog-plan",
+      "providerName": "PostHog",
+      "serviceId": "free"
+    },
+    "supabase-plan": {
+      "name": "supabase-plan",
+      "providerName": "Supabase",
+      "serviceId": "free"
+    },
+    "vercel-plan": {
+      "name": "vercel-plan",
+      "providerName": "Vercel",
+      "serviceId": "hobby"
+    }
+  },
+  "environments": {
+    "default": {
+      "output": ".env",
+      "resources": [
+        {
+          "resourceName": "owc-analytics"
+        },
+        {
+          "resourceName": "owc-db"
+        },
+        {
+          "resourceName": "posthog-plan"
+        },
+        {
+          "resourceName": "supabase-plan"
+        },
+        {
+          "resourceName": "vercel-plan"
+        }
+      ],
+      "variables": [
+        {
+          "variableName": "site-url",
+          "envKey": "NEXT_PUBLIC_SITE_URL"
+        },
+        {
+          "variableName": "stripe-publishable-key",
+          "envKey": "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
+        },
+        {
+          "variableName": "stripe-secret-key",
+          "envKey": "STRIPE_SECRET_KEY"
+        },
+        {
+          "variableName": "stripe-webhook-secret",
+          "envKey": "STRIPE_WEBHOOK_SECRET"
+        }
+      ]
+    }
+  },
+  "variables": {
+    "site-url": {
+      "name": "site-url",
+      "backendId": "fprjvar_61VDsNkvilZA8UYBs16VDTiv7xSQHiEH0bby3O8jAOfA"
+    },
+    "stripe-publishable-key": {
+      "name": "stripe-publishable-key",
+      "backendId": "fprjvar_61VDsNiyZRf9ACszX16VDTiv7xSQHiEH0bby3O8jAAlk"
+    },
+    "stripe-secret-key": {
+      "name": "stripe-secret-key",
+      "backendId": "fprjvar_61VDsNgxjVnbvB7u316VDTiv7xSQHiEH0bby3O8jA48G"
+    },
+    "stripe-webhook-secret": {
+      "name": "stripe-webhook-secret",
+      "backendId": "fprjvar_61VDtBYlss6zdW51M16VDTiv7xSQHiEH0bby3O8jAUnY"
+    }
+  }
+}

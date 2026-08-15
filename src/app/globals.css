@@ -1,26 +1,116 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Overpriced Water Co. — deadpan hyper-luxury.
+ *
+ * Light-first, no dark mode: the brand is a bright gallery with one acid-green accent, and
+ * the joke only lands if the whole thing looks expensive. The accent is rationed to price,
+ * CTAs, and certification marks.
+ */
+@theme {
+  --color-ink: #0b1215;
+  --color-paper: #f5f2ec;
+  --color-mist: #dde6e5;
+  --color-mineral: #2f4f4a;
+  --color-electrolyte: #c9f24d;
+
+  --font-display: var(--font-instrument-serif), ui-serif, Georgia, serif;
+  --font-sans: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  --ease-brand: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: 'ss01', 'cv05';
+  }
+
+  ::selection {
+    background: var(--color-electrolyte);
+    color: var(--color-ink);
+  }
+
+  /* The whole site is animated. Honor the setting rather than shipping a motion tax. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@utility display-xl {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 11vw, 9.5rem);
+  line-height: 0.86;
+  letter-spacing: -0.035em;
+}
+
+@utility display-lg {
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 6vw, 5rem);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
+}
+
+@utility display-md {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3.2vw, 2.75rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* Clinical all-caps label. Used for spec keys, eyebrows, and certification marks. */
+@utility label-mono {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+@utility hairline {
+  border-color: color-mix(in oklab, var(--color-ink) 12%, transparent);
+}
+
+@utility spec-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border-top: 1px solid color-mix(in oklab, var(--color-ink) 12%, transparent);
+  padding-block: 0.75rem;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-1.75rem) rotate(1.5deg);
+  }
 }

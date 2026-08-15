@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "project": {
+    "catalog": "prod",
+    "initializedAt": "2026-08-14T23:19:01.793Z",
+    "merchantDisplayName": "stripe-projects-grapple-genius",
+    "merchantId": "acct_1U45lYPtXzF4z2Xd",
+    "projectId": "project_61VDsKjq6C8E6iZZM16VDTiv7xSQHiEH0bby3O8jABlg",
+    "projectName": "overpriced-water"
+  },
+  "providers": {
+    "posthog": {
+      "accountRequestId": "facctrq_61VDsMK9Kq0RXmTTD16VDTiv7xSQHiEH0bby3O8jAVxI",
+      "configuration": {
+        "region": "US",
+        "organization_name": "Overpriced Water Co"
+      },
+      "linkedAt": "2026-08-14T23:20:42.055Z",
+      "providerId": "prvdr_61UGMHNyOleb3A55m5Pg8",
+      "providerName": "PostHog",
+      "redirectUrl": null,
+      "requestedAt": "2026-08-14T23:20:42.054Z",
+      "status": "complete"
+    },
+    "supabase": {
+      "accountRequestId": "fprvcnn_61VDTr1MUEz4GKMqK16VDTiv7xSQHiEH0bby3O8jACYK",
+      "configuration": {},
+      "linkedAt": "2026-08-13T21:10:43.396Z",
+      "providerId": "prvdr_61UIXYHdsyF69pZbG52n2",
+      "providerName": "Supabase",
+      "redirectUrl": null,
+      "requestedAt": "2026-08-13T21:10:43.396Z",
+      "status": "complete"
+    },
+    "vercel": {
+      "accountRequestId": "fprvcnn_61VDTscfDYNzVibkO16VDTiv7xSQHiEH0bby3O8jA71s",
+      "configuration": {},
+      "linkedAt": "2026-08-13T21:12:22.673Z",
+      "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
+      "providerName": "Vercel",
+      "redirectUrl": null,
+      "requestedAt": "2026-08-13T21:12:22.673Z",
+      "status": "complete"
+    }
+  },
+  "resources": {
+    "owc-analytics": {
+      "configuration": {},
+      "createdAt": "2026-08-14T23:20:54.727Z",
+      "lastRevealedAt": "2026-08-14T23:20:55.039Z",
+      "lastStatus": "complete",
+      "name": "owc-analytics",
+      "providerId": "prvdr_61UGMHNyOleb3A55m5Pg8",
+      "providerName": "PostHog",
+      "resourceId": "fres_61VDsMYUE1JqdKFDP16VDTiv7xSQHiEH0bby3O8jAB96",
+      "serviceId": "analytics"
+    },
+    "owc-db": {
+      "configuration": {
+        "name": "overpriced-water",
+        "region": "americas"
+      },
+      "createdAt": "2026-08-14T23:20:19.375Z",
+      "lastRevealedAt": "2026-08-14T23:20:19.675Z",
+      "lastStatus": "complete",
+      "name": "owc-db",
+      "providerId": "prvdr_61UIXYHdsyF69pZbG52n2",
+      "providerName": "Supabase",
+      "resourceId": "fres_61VDsLicSDamLBEAz16VDTiv7xSQHiEH0bby3O8jAGXA",
+      "serviceId": "project"
+    },
+    "posthog-plan": {
+      "configuration": {},
+      "createdAt": "2026-08-14T23:20:44.136Z",
+      "lastRevealedAt": "2026-08-14T23:20:44.410Z",
+      "lastStatus": "complete",
+      "name": "posthog-plan",
+      "providerId": "prvdr_61UGMHNyOleb3A55m5Pg8",
+      "providerName": "PostHog",
+      "resourceId": "fres_61VDsMMPqi1OasGqg16VDTiv7xSQHiEH0bby3O8jAUoK",
+      "serviceId": "free"
+    },
+    "supabase-plan": {
+      "configuration": {},
+      "createdAt": "2026-08-14T23:19:51.437Z",
+      "lastRevealedAt": "2026-08-14T23:19:51.698Z",
+      "lastStatus": "complete",
+      "name": "supabase-plan",
+      "providerId": "prvdr_61UIXYHdsyF69pZbG52n2",
+      "providerName": "Supabase",
+      "resourceId": "fres_61VDsLFdQRHy5Rtbo16VDTiv7xSQHiEH0bby3O8jARuS",
+      "serviceId": "free"
+    },
+    "vercel-plan": {
+      "configuration": {},
+      "createdAt": "2026-08-14T23:21:07.287Z",
+      "lastRevealedAt": "2026-08-14T23:21:07.613Z",
+      "lastStatus": "complete",
+      "name": "vercel-plan",
+      "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
+      "providerName": "Vercel",
+      "resourceId": "fres_61VDsMkxeg7yzPDHL16VDTiv7xSQHiEH0bby3O8jA0gy",
+      "serviceId": "hobby"
+    }
+  },
+  "managedProjectVariableEnvKeys": {
+    ".env": [
+      "NEXT_PUBLIC_SITE_URL",
+      "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET"
+    ]
+  }
+}
