@@ -53,6 +53,45 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 
 Test card: `4242 4242 4242 4242`, any future expiry, any CVC.
 
+## Deployment
+
+Live (test mode): **https://overpriced-water.vercel.app**
+
+Stripe Projects provisions the Vercel project but cannot deploy it (friction P8), so deployment
+is the Vercel CLI reading the vault's token:
+
+```bash
+npm i -D vercel
+set -a; . ./.env; set +a          # VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID
+vercel pull --yes --environment=production
+vercel deploy --prod --yes
+```
+
+Runtime variables live on the Vercel project (`vercel env add … production`):
+`STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `SUPABASE_POOLER_URL`,
+`SUPABASE_DB_PASS`, `OWC_ANALYTICS_API_KEY`, `OWC_ANALYTICS_HOST`, plus the two that
+deliberately differ from the vault's local values — `STRIPE_WEBHOOK_SECRET` (the deployed
+endpoint's secret, not `stripe listen`'s) and `NEXT_PUBLIC_SITE_URL` (see friction P10).
+
+### Verified against production
+
+| Check | Result |
+| --- | --- |
+| All six pages + `not-found` | `200`, `404` for an unknown slug |
+| `GET /api/categories`, `/api/products` | Live data from Supabase |
+| REST cart walk (mixed cart) | `409 mixed_cart` with no scope; `client_secret` for `scope=subscription`; hosted `url` for `scope=one_time` |
+| Two coexisting sessions | Both scopes `open` at once; editing one scope expires only that scope |
+| Webhook `checkout.session.completed` | Signature verified against the deployed endpoint's secret → order `OWC-VVVKRC` created (since removed) |
+| `/orders/confirmation?session_id=…` | Rendered the order number and receipt |
+| Remote MCP `/api/mcp` | `initialize`, 12 tools, 9 resources, `owc://catalog` (8.5 KB), then `create_cart → add_to_cart → view_cart → start_checkout` returned a real `cs_test_…` Checkout URL |
+| PostHog ingest proxy | `POST /ingest/i/v0/e/` → `{"status":"Ok"}`; `/ingest/static/array.js` → `200` |
+
+Completing a card payment in the embedded form is the one step that needs a human — by design
+(`start_checkout` never auto-submits payment). The webhook path was proven with
+`stripe trigger checkout.session.completed` against the deployed endpoint, and the synchronous
+fallback was proven locally by deleting the order row and reloading the confirmation page: the
+deterministic, session-derived order number came back identical.
+
 ---
 
 # Friction log
@@ -234,6 +273,113 @@ credential gets **live mode**. Every Stripe call in this project reads `STRIPE_S
 the project vault, which is pinned to a `sk_test_…` key, and `src/lib/stripe.ts` asserts the
 `sk_test_` prefix at startup and throws otherwise.
 
+### P7 — `stripe projects variables set` does not take `NAME=value`
+
+The obvious shape fails:
+
+```bash
+$ stripe projects variables set STRIPE_WEBHOOK_SECRET=whsec_…
+✗ Missing required argument: env-key
+```
+
+The name is the *vault* variable name; the environment variable it binds to is a separate flag,
+and the value is a third:
+
+```bash
+stripe projects variables set stripe-webhook-secret \
+  --env-key STRIPE_WEBHOOK_SECRET --value "$WHSEC"
+```
+
+Nothing in the error names `--value`, and `--help` lists the flags without an example, so the
+two-name model (vault name vs. env key) has to be inferred.
+
+### P8 — `vercel/project` provisions fine without a Git repo, but Projects cannot deploy
+
+Expected blocker that never happened: `stripe projects add vercel/project --json --yes` returned
+`status: "complete"` in a directory with **no Git remote and no GitHub CLI installed**. It creates
+the Vercel project and writes `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_PROJECT_LINK`,
+`VERCEL_PROJECT_URL`, `VERCEL_TOKEN`.
+
+What it does *not* do is deploy. `stripe projects --help` has GET STARTED / MANAGE SERVICES /
+ENVIRONMENT / BILLING / FEEDBACK and no `deploy` anywhere, so "launch it" is still a Vercel CLI
+job using the vault's token:
+
+```bash
+npm i -D vercel                      # no global `vercel`, and no `gh`, on this machine
+set -a; . ./.env; set +a
+vercel pull --yes --environment=production
+vercel deploy --prod --yes
+```
+
+Sub-friction: `npx --yes vercel@latest <cmd>` exits `1` with **no error output at all** on this
+machine (Node 20.17, below the CLI's engine floor). The locally-installed binary prints real
+errors. An agent that trusts `npx` here gets a silent failure and no idea why.
+
+### P9 — The provisioned `VERCEL_TOKEN` expires in about half an hour, and re-adding the service renames every variable 🔴
+
+The first `vercel deploy --prod` worked. Roughly thirty minutes later, the same token:
+
+```
+Error: The token provided via VERCEL_TOKEN environment variable is not valid.
+```
+
+`stripe projects env --pull --yes` and even `stripe projects env --refresh --pull --yes` re-wrote
+`.env` and left the dead token in place — a refresh of the *file*, not of the *credential*. The
+documented fix is `stripe projects rotate vercel-project`.
+
+The trap is the plausible-looking alternative. Re-running `stripe projects add vercel/project`
+does **not** re-issue credentials for the existing resource; it provisions a **second** one
+(`vercel-project-2`, plus a second real Vercel project), and adding it re-namespaces the
+already-working variables:
+
+| Before | After |
+| --- | --- |
+| `VERCEL_TOKEN` | `VERCEL_PROJECT_TOKEN`, `VERCEL_PROJECT_2_TOKEN` |
+| `VERCEL_ORG_ID` | `VERCEL_PROJECT_ORG_ID`, `VERCEL_PROJECT_2_ORG_ID` |
+| `VERCEL_PROJECT_ID` | `VERCEL_PROJECT_PROJECT_ID`, `VERCEL_PROJECT_2_PROJECT_ID` |
+
+So a second `add` silently breaks every script, Vercel env var, and skill instruction that
+referenced the unprefixed names — the first resource's variables get renamed even though nothing
+about that resource changed. Prefer `stripe projects rotate <resource>` and treat a duplicate
+`add` as destructive.
+
+### P10 — No webhook secret is provisioned, and one variable has to serve two endpoints
+
+`stripe projects add stripe/…` has no equivalent for a webhook endpoint: `STRIPE_WEBHOOK_SECRET`
+does not exist until you create it yourself (P7). Worse, there are legitimately **two** secrets —
+the one `stripe listen` prints for local forwarding, and the one the deployed endpoint uses — and
+the vault models one variable per environment. Here the vault holds the local `stripe listen`
+secret so `npm run dev` works, and the production value is set directly on the Vercel project:
+
+```bash
+curl -s https://api.stripe.com/v1/webhook_endpoints -u "$STRIPE_SECRET_KEY:" \
+  -d url="https://overpriced-water.vercel.app/api/webhooks/stripe" \
+  -d "enabled_events[]=checkout.session.completed" \
+  -d "enabled_events[]=checkout.session.async_payment_succeeded"
+# then: vercel env add STRIPE_WEBHOOK_SECRET production
+```
+
+Same story for `NEXT_PUBLIC_SITE_URL`: the vault keeps `http://localhost:3000` for dev, and
+production is set on Vercel. A `stripe projects env create production` environment would model
+this properly; with one environment, the split is unavoidable.
+
+### P11 — The provisioned PostHog personal API key cannot find its own project
+
+`stripe projects add posthog/analytics` exports `OWC_ANALYTICS_API_KEY` (ingest),
+`OWC_ANALYTICS_HOST`, and `OWC_ANALYTICS_PERSONAL_API_KEY` (read API) — but **no project id**,
+which every read endpoint requires. The key is scoped to one project, and the `@current` alias
+resolves to a different one:
+
+```
+GET /api/projects/            → "API keys with scoped projects are only supported on
+                                 project-based endpoints."
+GET /api/projects/@current/   → "API key does not have access to the requested project: ID 558731."
+```
+
+So there is no way to read events back programmatically — you have to open the dashboard to get
+the numeric id. Verification here was done on the write path instead: a `capture` through the
+app's own `/ingest` proxy returns `{"status":"Ok"}`, which proves key, host, and rewrite.
+
 ## Stripe API / Checkout
 
 ### S1 — Mixed one-time + subscription carts cannot be one Checkout Session
@@ -248,6 +394,16 @@ on Checkout Sessions the way it is on Subscriptions.
 The cart page renders two checkout buttons and says so plainly. Both agent surfaces expose
 `scope` on `start_checkout` and surface the same error text, so an agent can recover without
 guessing.
+
+**Second-order bug this caused (found in production verification):** one session per purchase type
+means a cart needs to remember *two* sessions, and `carts.stripe_checkout_session_id` is one
+column. Requesting the subscription session expired the one-time session that had just been
+handed out, so a customer who clicked "Proceed to payment" and then "Begin the standing order"
+was left with a dead form. Fixed by `db/migrations/002_cart_checkout_sessions.sql` — one row per
+`(cart_id, scope)` — and by fingerprinting only the lines in that scope, so adding a bottle to
+the one-time side no longer invalidates the standing order's session. Verified: both sessions
+report `open` simultaneously; editing one scope expires only that scope's session and the other
+is still reused.
 
 ### S3 — `products.search` is eventually consistent, which silently breaks "idempotent" seeds 🔴
 
@@ -362,6 +518,29 @@ Affected three call sites here (`products.images`, `carts.metadata`, `orders.shi
 because `JSON.stringify` is the reflex from every other driver. Worth a `jsonb_typeof` assertion
 in your seed if you store jsonb.
 
+### N2 — One import in a client component pulled the Postgres driver into the browser bundle 🔴
+
+Every page 500'd at once with a build-time module error, and the message named nothing we wrote:
+
+```
+Module not found: Can't resolve 'tls'
+Import trace:
+  postgres/src/connection.js
+  → src/lib/db/client.ts
+  → src/lib/commerce/cart.ts
+  → src/components/agent/ModelContextRegistrar.tsx [Client Component Browser]
+```
+
+Cause: the client-side WebMCP registrar imported `CommerceError` for error handling, that class
+happened to live in `cart.ts`, and `cart.ts` imports the database client. A type-only import
+would have been erased; a *class* is a runtime value, so the whole module graph came with it —
+including `postgres`, which needs Node's `tls`/`net`.
+
+**Fix:** `src/lib/commerce/errors.ts` holds `CommerceError` alone, `cart.ts` re-exports it so no
+server-side importer changed, and the two client-side importers point at the new module. The rule
+worth stating out loud: **anything a client component imports must not transitively reach the
+database client** — and shared error classes are the easiest way to violate it by accident.
+
 ## WebMCP
 
 ### W1 — The documented API surface is split across pages and partly deprecated already
@@ -387,7 +566,16 @@ agent reach the store at all.
 endpoint at `/api/mcp` for remote ones. Neither can drift from the other because both are
 projections of the same array.
 
-<!-- Entries appended as implementation continues. -->
+## Open items
+
+- The per-scope Checkout Session fix (migration `002`, S1's second-order bug) is applied to the
+  database and committed, but **not yet on the live deployment**: the vault's `VERCEL_TOKEN`
+  expired mid-session (friction P9) and re-issuing it needs
+  `stripe projects rotate vercel-project`, which requires an explicit human go-ahead in this
+  environment. Once rotated, `vercel deploy --prod --yes` ships it.
+- `stripe projects add vercel/project` was run a second time while chasing P9 and left a stray
+  `vercel-project-2` resource (and a matching empty Vercel project). Removing it should also
+  restore the unprefixed `VERCEL_*` variable names.
 
 ---
 

@@ -26,11 +26,16 @@ export interface CheckoutSessionResult {
   total_cents: number
 }
 
+/**
+ * Where Checkout should send the customer back to.
+ *
+ * `VERCEL_PROJECT_PRODUCTION_URL` is preferred over `VERCEL_URL` because the latter is the
+ * immutable per-deployment hostname: a `return_url` built from it would strand the customer on
+ * a deployment that a later `--prod` push has already superseded.
+ */
 function siteUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
-  )
+  const host = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL
+  return process.env.NEXT_PUBLIC_SITE_URL ?? (host ? `https://${host}` : 'http://localhost:3000')
 }
 
 /**
@@ -82,42 +87,34 @@ export async function createCheckoutSession(
 
   const scope = resolveScope(cart, opts.scope)
   const uiMode: CheckoutUiMode = opts.uiMode ?? 'embedded'
-  const hash = itemsHash(cart, `${scope}:${uiMode}`)
+  const hash = itemsHash(cart, `${scope}:${uiMode}`, scope)
 
   // Reuse an open session when nothing about the cart has changed. Keeps repeated visits to
-  // /checkout from creating a trail of abandoned sessions.
-  const [existing] = await sql<{ stripe_checkout_session_id: string | null }[]>`
-    select stripe_checkout_session_id from carts
-    where id = ${cartId} and items_hash = ${hash}
+  // /checkout from creating a trail of abandoned sessions. Scoped to this purchase type, so a
+  // mixed cart's two sessions coexist instead of expiring each other.
+  const [existing] = await sql<{ stripe_checkout_session_id: string; items_hash: string }[]>`
+    select stripe_checkout_session_id, items_hash from cart_checkout_sessions
+    where cart_id = ${cartId} and scope = ${scope}
   `
-  if (existing?.stripe_checkout_session_id) {
+  if (existing) {
     try {
       const s = await stripe.checkout.sessions.retrieve(existing.stripe_checkout_session_id)
       if (s.status === 'open') {
-        return {
-          session_id: s.id,
-          ui_mode: uiMode,
-          client_secret: s.client_secret ?? null,
-          url: s.url ?? null,
-          scope,
-          total_cents: s.amount_total ?? cart.totals.total_cents,
+        if (existing.items_hash === hash) {
+          return {
+            session_id: s.id,
+            ui_mode: uiMode,
+            client_secret: s.client_secret ?? null,
+            url: s.url ?? null,
+            scope,
+            total_cents: s.amount_total ?? cart.totals.total_cents,
+          }
         }
+        // The lines moved, so this session would charge a stale total.
+        await stripe.checkout.sessions.expire(s.id)
       }
     } catch {
       // Fall through and create a fresh one.
-    }
-  }
-
-  // Expire any previous open session for this cart so it cannot be paid at a stale total.
-  const [prev] = await sql<{ stripe_checkout_session_id: string | null }[]>`
-    select stripe_checkout_session_id from carts where id = ${cartId}
-  `
-  if (prev?.stripe_checkout_session_id) {
-    try {
-      const s = await stripe.checkout.sessions.retrieve(prev.stripe_checkout_session_id)
-      if (s.status === 'open') await stripe.checkout.sessions.expire(s.id)
-    } catch {
-      /* already gone */
     }
   }
 
@@ -204,6 +201,15 @@ export async function createCheckoutSession(
 
   const session = await stripe.checkout.sessions.create(params)
 
+  await sql`
+    insert into cart_checkout_sessions (cart_id, scope, stripe_checkout_session_id, items_hash)
+    values (${cartId}, ${scope}, ${session.id}, ${hash})
+    on conflict (cart_id, scope) do update
+      set stripe_checkout_session_id = excluded.stripe_checkout_session_id,
+          items_hash = excluded.items_hash,
+          updated_at = now()
+  `
+  // Kept for the confirmation page and for anyone reading the carts table directly.
   await sql`
     update carts
     set stripe_checkout_session_id = ${session.id}, items_hash = ${hash}

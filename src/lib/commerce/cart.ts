@@ -222,16 +222,24 @@ export async function setEmail(cartId: string, email: string): Promise<Cart> {
 /**
  * Fingerprint of the cart's lines. When it changes, any open Checkout Session is stale and
  * must be expired rather than reused — otherwise a customer could pay yesterday's total.
+ *
+ * Pass `only` to fingerprint a single purchase type. A mixed cart holds one session per type, and
+ * adding a bottle to the one-time side must not invalidate the standing order's session, whose
+ * lines and total did not move.
  */
-export function itemsHash(cart: Cart, scope: string): string {
+export function itemsHash(cart: Cart, label: string, only?: PurchaseKind): string {
   const canonical = cart.items
+    .filter((i) => !only || i.purchase_kind === only)
     .map((i) => `${i.variant_id}:${i.purchase_kind}:${i.quantity}:${i.unit_price_cents}`)
     .sort()
     .join('|')
-  return createHash('sha256').update(`${scope}::${canonical}`).digest('hex').slice(0, 32)
+  return createHash('sha256').update(`${label}::${canonical}`).digest('hex').slice(0, 32)
 }
 
 async function invalidateCheckout(cartId: string) {
+  // Only the legacy cart-level column is cleared. `cart_checkout_sessions` needs no touching:
+  // each row carries the hash of its own scope's lines, so the next checkout request notices
+  // the change by itself — and leaves the untouched scope's session alone.
   await sql`update carts set items_hash = null where id = ${cartId}`
 }
 

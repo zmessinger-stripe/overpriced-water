@@ -36,6 +36,16 @@
       "name": "vercel-plan",
       "providerName": "Vercel",
       "serviceId": "hobby"
+    },
+    "vercel-project": {
+      "name": "vercel-project",
+      "providerName": "Vercel",
+      "serviceId": "project"
+    },
+    "vercel-project-2": {
+      "name": "vercel-project-2",
+      "providerName": "Vercel",
+      "serviceId": "project"
     }
   },
   "environments": {
@@ -56,6 +66,12 @@
         },
         {
           "resourceName": "vercel-plan"
+        },
+        {
+          "resourceName": "vercel-project"
+        },
+        {
+          "resourceName": "vercel-project-2"
         }
       ],
       "variables": [
